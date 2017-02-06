@@ -22,6 +22,7 @@ ser = serial.Serial(
 #Initialize Camera
 vs = stream.WebcamVideoStream(src = 0).start()
 
+
 #HSV Threshholds
 greenLower = (70, 100, 50)
 greenUpper = (80, 255, 100)
@@ -51,10 +52,14 @@ while proccessing:
         cnts = sorted(cnts, key = cv2.contourArea);
         (x,y,w,h) = cv2.boundingRect(cnts[-1])
         (x2,y2,w2,h2) = cv2.boundingRect(cnts[-2])
-        if w*h > 10:
-            cv2.rectangle(frame, (int(x),int(y)), (int(x + w),int(y + h)), (0,255,255),2)
-        if w2*h2 > 100:
-            cv2.rectangle(frame, (int(x2),int(y2)), (int(x2 + w2),int(y2 + h2)), (0,255,255),2)
+        if w*h > 100 and w2*h2 > 100:
+            #cv2.rectangle(frame, (int(x),int(y)), (int(x + w),int(y + h)), (0,255,255),2)
+            #cv2.rectangle(frame, (int(x2),int(y2)), (int(x2 + w2),int(y2 + h2)), (0,255,255),2)
+            cv2.rectangle(frame, (int(min(x,x2)),int(max(y,y2))),
+                          (int(max(x+w, x2+w2)),int(min(y+h, y2 + h2))), (0,0,255),2)
+            x_center = int((min(x,x2)+max(x+w, x2+w2))/2)
+            y_center = int((min(y,y2)+max(y+h, y2+h2))/2)
+            cv2.circle(frame, (x_center, y_center), 3, (0,0,255),2)
     else:
         x = 999
 
