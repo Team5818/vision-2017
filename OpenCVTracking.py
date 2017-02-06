@@ -48,26 +48,32 @@ while proccessing:
 
     cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,
                             cv2.CHAIN_APPROX_SIMPLE)[-2]
-    if len(cnts) > 1:
+    if len(cnts) > 0:
         cnts = sorted(cnts, key = cv2.contourArea);
         (x,y,w,h) = cv2.boundingRect(cnts[-1])
-        (x2,y2,w2,h2) = cv2.boundingRect(cnts[-2])
+        if len(cnts) < 2:
+            (x2,y2,w2,h2) = (0,0,0,0)
+        else:
+            (x2,y2,w2,h2) = cv2.boundingRect(cnts[-2])
         if w*h > 100 and w2*h2 > 100:
-            #cv2.rectangle(frame, (int(x),int(y)), (int(x + w),int(y + h)), (0,255,255),2)
-            #cv2.rectangle(frame, (int(x2),int(y2)), (int(x2 + w2),int(y2 + h2)), (0,255,255),2)
             cv2.rectangle(frame, (int(min(x,x2)),int(max(y,y2))),
                           (int(max(x+w, x2+w2)),int(min(y+h, y2 + h2))), (0,0,255),2)
             x_center = int((min(x,x2)+max(x+w, x2+w2))/2)
             y_center = int((min(y,y2)+max(y+h, y2+h2))/2)
             cv2.circle(frame, (x_center, y_center), 3, (0,0,255),2)
+        elif max(w*h,w2*h2) > 100:
+            cv2.rectangle(frame, (int(x),int(y)), (int(x+w),int(y+h)),(0,0,255),2)
+            x_center = int(x + w/2)
+            y_center = int(y + h/2)
+            cv2.circle(frame, (x_center, y_center), 3, (0,0,255),2)
     else:
-        x = 999
+        x_center = 999
 
     #Send Data
     try:
         ser.flushInput()
         ser.flushOutput()
-        ser.write("%+04d" % (int(x-240)) + "\n")
+        ser.write("%+04d" % (int(x_center-240)) + "\n")
     except serial.SerialTimeoutException:
         print("timed out")
     try:
