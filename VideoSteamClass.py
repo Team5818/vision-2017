@@ -1,9 +1,11 @@
 from threading import Thread
 import cv2
+import os
 
 class WebcamVideoStream:
     def __init__(self, src = 0):
         self.stream = cv2.VideoCapture(src)
+        os.system("v4l2-ctl -c exposure_absolute=5")
         (self.grabbed, self.frame) = self.stream.read()
         self.stopped = False
 
