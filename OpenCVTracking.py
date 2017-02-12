@@ -96,23 +96,25 @@ try:
                  
         #Send Data
         try:
-            ser.flushInput()
             ser.flushOutput()
             ser.write("%+04d" % (int(x_center-160)) + "\n")
         except serial.SerialTimeoutException:
             print("timed out")
         try:
-            read = ser.readline()
-            if read == "shutdown":
-                os.system("sudo shutdown -h now")
-            elif read == "quit":
-                proccessing = False
-            elif read == "switch":
-                gears = not gears
-            elif read == "explo":
-                 os.system("v4l2-ctl -d /dev/video1 -c exposure_absolute=5")
-            elif read == "exphi":
-                 os.system("v4l2-ctl -d /dev/video1 -c exposure_absolute=156")
+            if ser.inWaiting() > 0:
+                read = str(ser.read(1))
+                ser.flushInput()
+                if "s" in read:
+                    os.system("sudo shutdown -h now")
+                elif "q" in read:
+                    proccessing = False
+                elif "w" in read:
+                    gears = not gears
+                elif "l" in read:
+                    os.system("v4l2-ctl -d /dev/video1 -c exposure_absolute=5")
+                elif "h" in read:
+                    os.system("v4l2-ctl -d /dev/video1 -c exposure_absolute=156")
+                print(read)
         except serial.SerialTimeoutException:
             pass
         
