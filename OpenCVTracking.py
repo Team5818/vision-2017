@@ -98,7 +98,7 @@ try:
         try:
             ser.flushInput()
             ser.flushOutput()
-            ser.write("%+04d" % (int(x_center-320)) + "\n")
+            ser.write("%+04d" % (int(x_center-160)) + "\n")
         except serial.SerialTimeoutException:
             print("timed out")
         try:
@@ -114,12 +114,8 @@ try:
             elif read == "exphi":
                  os.system("v4l2-ctl -d /dev/video1 -c exposure_absolute=156")
         except serial.SerialTimeoutException:
-            pass    
- 
-                
-        except serial.SerialTimeoutException:
-            pass    
-
+            pass
+        
         #Display          
         cv2.imshow("Frame", frame)
         key = cv2.waitKey(1) & 0xFF
