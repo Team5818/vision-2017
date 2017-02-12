@@ -6,6 +6,7 @@ import time
 import serial
 import os
 
+
 ser = serial.Serial(
     port = '/dev/ttyS0',
     baudrate = 9600,
@@ -20,18 +21,16 @@ ser = serial.Serial(
     )
 
 #Initialize Camera
-vs = stream.WebcamVideoStream(src = 0).start()
+vsgears = stream.WebcamVideoStream(src = 0).start()
+vstape = stream.WebcamVideoStream(src = 1).start()
 
 
 #HSV Threshholds
-greenLower = (70, 100, 50)
-greenUpper = (80, 255, 100)
+greenLower = (70, 100, 100)
+greenUpper = (90, 255, 255)
 
-yellowLower = (25, 100,0)
+yellowLower = (20, 100,100)
 yellowUpper = (35,255,255)
-
-threshLower = yellowLower
-threshUpper = yellowUpper
 
 gears = True
 proccessing = True
@@ -39,14 +38,22 @@ proccessing = True
 #Proccessing Loop
 try:
     while proccessing:
+        if gears:
+            vs = vsgears
+            threshLower = yellowLower
+            threshUpper = yellowUpper
+        else:
+            vs = vstape
+            threshLower = greenLower
+            threshUpper = greenUpper
         #Grab frame
-        frame = vs.read()
+        frame = vs.read().copy()
         (width, height, c) = frame.shape
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
         #Remove Small Particles
         mask = cv2.inRange(hsv, threshLower, threshUpper)
-        mask = cv2.erode(mask, None, iterations=2)
+        mask = cv2.erode(mask, None, iterations=1)
         mask = cv2.dilate(mask, None, iterations=2)
 
         cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,
@@ -91,15 +98,25 @@ try:
         try:
             ser.flushInput()
             ser.flushOutput()
-            ser.write("%+04d" % (int(x_center-240)) + "\n")
+            ser.write("%+04d" % (int(x_center-320)) + "\n")
         except serial.SerialTimeoutException:
             print("timed out")
         try:
             read = ser.readline()
-            if read == "s":
+            if read == "shutdown":
                 os.system("sudo shutdown -h now")
-            elif read == "q":
+            elif read == "quit":
                 proccessing = False
+            elif read == "switch":
+                gears = not gears
+            elif read == "explo":
+                 os.system("v4l2-ctl -d /dev/video1 -c exposure_absolute=5")
+            elif read == "exphi":
+                 os.system("v4l2-ctl -d /dev/video1 -c exposure_absolute=156")
+        except serial.SerialTimeoutException:
+            pass    
+ 
+                
         except serial.SerialTimeoutException:
             pass    
 
@@ -108,7 +125,16 @@ try:
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             proccessing = False
+        if key == ord('x'):
+            gears = not gears
+        elif key == ord('l'):
+            os.system("v4l2-ctl -d /dev/video1 -c exposure_auto=1 -c exposure_absolute=5")
+        elif key == ord('h'):
+            os.system("v4l2-ctl -d /dev/video1 -c exposure_auto=1 -c exposure_absolute=156")
 finally:
-    vs.release()
+    vstape.release()
+    vsgears.release()
     cv2.destroyAllWindows()
+
+
 
