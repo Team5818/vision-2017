@@ -26,13 +26,13 @@ vstape = stream.WebcamVideoStream(src = 1).start()
 
 
 #HSV Threshholds
-greenLower = (70, 100, 100)
+greenLower = (60, 100, 70)
 greenUpper = (90, 255, 255)
 
-yellowLower = (20, 100,100)
+yellowLower = (18, 100,100)
 yellowUpper = (35,255,255)
 
-gears = True
+gears = False
 proccessing = True
 
 #Proccessing Loop
@@ -60,29 +60,29 @@ try:
                                 cv2.CHAIN_APPROX_SIMPLE)[-2]
         if not gears:
             if len(cnts) > 0:
-                x_center = 999
+                x_center = 160
                 cnts = sorted(cnts, key = cv2.contourArea);
                 (x,y,w,h) = cv2.boundingRect(cnts[-1])
                 if len(cnts) < 2:
                     (x2,y2,w2,h2) = (0,0,0,0)
                 else:
                     (x2,y2,w2,h2) = cv2.boundingRect(cnts[-2])
-                if w*h > 100 and w2*h2 > 100:
+                if w*h > 50 and w2*h2 > 50:
                     cv2.rectangle(frame, (int(min(x,x2)),int(max(y,y2))),
                                   (int(max(x+w, x2+w2)),int(min(y+h, y2 + h2))), (0,0,255),2)
                     x_center = int((min(x,x2)+max(x+w, x2+w2))/2)
                     y_center = int((min(y,y2)+max(y+h, y2+h2))/2)
                     cv2.circle(frame, (x_center, y_center), 3, (0,0,255),2)
-                elif max(w*h,w2*h2) > 100:
+                elif max(w*h,w2*h2) > 50:
                     cv2.rectangle(frame, (int(x),int(y)), (int(x+w),int(y+h)),(0,0,255),2)
                     x_center = int(x + w/2)
                     y_center = int(y + h/2)
                     cv2.circle(frame, (x_center, y_center), 3, (0,0,255),2)
             else:
-                x_center = 999
+                x_center = 160
         else:
              if len(cnts) > 0:
-                x_center = 999
+                x_center = 160
                 c = max(cnts, key = cv2.contourArea)
                 if len(c) > 5:
                     rect = cv2.minAreaRect(c)
@@ -92,7 +92,7 @@ try:
                         cv2.circle(frame,(int(x),int(y)), 3, (0,255,0),2)
                         x_center = x
              else:
-                 x_center = 0
+                 x_center = 160
                  
         #Send Data
         try:
@@ -108,13 +108,14 @@ try:
                     os.system("sudo shutdown -h now")
                 elif "q" in read:
                     proccessing = False
-                elif "w" in read:
-                    gears = not gears
                 elif "l" in read:
                     os.system("v4l2-ctl -d /dev/video1 -c exposure_absolute=5")
                 elif "h" in read:
                     os.system("v4l2-ctl -d /dev/video1 -c exposure_absolute=156")
-                print(read)
+                elif "t" in read:
+                    gears = False
+                elif "g" in read:
+                    gears = True
         except serial.SerialTimeoutException:
             pass
         
@@ -125,10 +126,10 @@ try:
             proccessing = False
         if key == ord('x'):
             gears = not gears
-        elif key == ord('l'):
-            os.system("v4l2-ctl -d /dev/video1 -c exposure_auto=1 -c exposure_absolute=5")
-        elif key == ord('h'):
-            os.system("v4l2-ctl -d /dev/video1 -c exposure_auto=1 -c exposure_absolute=156")
+        #elif key == ord('l'):
+        #    os.system("v4l2-ctl -d /dev/video1 -c exposure_auto=1 -c exposure_absolute=5")
+        #elif key == ord('h'):
+        #    os.system("v4l2-ctl -d /dev/video1 -c exposure_auto=1 -c exposure_absolute=156")
 finally:
     vstape.release()
     vsgears.release()
