@@ -120,12 +120,12 @@ try:
             pass
         
         #Display          
-        cv2.imshow("Frame", frame)
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('q'):
-            proccessing = False
-        if key == ord('x'):
-            gears = not gears
+        #cv2.imshow("Frame", frame)
+        #key = cv2.waitKey(1) & 0xFF
+        #if key == ord('q'):
+        #    proccessing = False
+        #if key == ord('x'):
+        #    gears = not gears
         #elif key == ord('l'):
         #    os.system("v4l2-ctl -d /dev/video1 -c exposure_auto=1 -c exposure_absolute=5")
         #elif key == ord('h'):
