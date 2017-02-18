@@ -54,7 +54,7 @@ def processing_starter(ns: Namespace, evt: Event, sh_evt: Event):
 
             if ser is not None:
                 ser.flushOutput()
-                ser.write("%+04d\n".format(int(x_center - 160)))
+                ser.write("%+04d\n".format(int(x_center - 160)).encode('utf-8'))
         except Exception:
             import traceback
             traceback.print_exc()
