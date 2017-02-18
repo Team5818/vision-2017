@@ -9,6 +9,12 @@ import serial
 from ..dataclasses import Configuration, ConfigMode
 from ..dataclasses import MJImage
 
+CAM0_SET = "v4l2-ctl -d /dev/video0 -c "
+CAM1_SET = "v4l2-ctl -d /dev/video1 -c "
+
+LOW_EXPOSURE = 5
+HIGH_EXPOSURE = 156
+
 
 def start_processing_process(ns: Namespace, evt: Event, sh_evt: Event):
     proc = mp.Process(target=processing_starter, args=(ns, evt, sh_evt))
@@ -38,6 +44,12 @@ def processing_starter(ns: Namespace, evt: Event, sh_evt: Event):
         ConfigMode.GEARS: Configuration((18, 100, 100), (35, 255, 255)),
         ConfigMode.TAPE: Configuration((60, 100, 70), (90, 255, 255))
     }
+
+    # le camera setup
+    os.system(f"{CAM0_SET} exposure_auto=1")
+    os.system(f"{CAM1_SET} exposure_auto=1")
+    os.system(f"{CAM0_SET} exposure_absolute={HIGH_EXPOSURE}")
+    os.system(f"{CAM1_SET} exposure_absolute={LOW_EXPOSURE}")
 
     if not evt.is_set():
         evt.wait()
@@ -72,10 +84,10 @@ def processing_starter(ns: Namespace, evt: Event, sh_evt: Event):
                         sh_evt.set()
                     elif "l" in read:
                         os.system(
-                            "v4l2-ctl -d /dev/video1 -c exposure_absolute=5")
+                            f"{CAM1_SET} exposure_absolute={LOW_EXPOSURE}")
                     elif "h" in read:
                         os.system(
-                            "v4l2-ctl -d /dev/video1 -c exposure_absolute=156")
+                            f"{CAM1_SET} exposure_absolute={HIGH_EXPOSURE}")
                     elif "t" in read:
                         setattr(ns, 'active_config', ConfigMode.TAPE)
                     elif "g" in read:
