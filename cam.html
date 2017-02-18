@@ -3,8 +3,40 @@
 <head>
     <meta charset="utf-8"/>
     <title>Camera Server</title>
+    <link type="text/css" rel="stylesheet" href="/cam.css"/>
 </head>
 <body>
-<img style="display: block; margin: auto" width="1080" height="675" src="/cam"/>
+<script>
+    function switch_feeds() {
+        var btn = document.getElementById("feed-switcher");
+        var feed = document.getElementById("feed");
+        var txt = document.getElementById("selected");
+
+        var plain = btn.classList.contains("plain");
+        var cls = [txt.classList, btn.classList];
+        if (plain) {
+            feed.setAttribute("src", "/cam-proc");
+            txt.textContent = "PROCESSED";
+
+            cls.forEach(function (e) {
+                e.remove("plain");
+                e.add("deco");
+            });
+        } else {
+            feed.setAttribute("src", "/cam");
+            txt.textContent = "PLAIN";
+
+            cls.forEach(function (e) {
+                e.remove("deco");
+                e.add("plain");
+            });
+        }
+    }
+</script>
+<div>
+    <img id="feed" class="center" width="625" height="500" src="/cam"/>
+    <p id="selected" class="center center-text">PLAIN</p>
+    <button id="feed-switcher" class="center plain" onclick="switch_feeds()">Switch Source</button>
+</div>
 </body>
 </html>

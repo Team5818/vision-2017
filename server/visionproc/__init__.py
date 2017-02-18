@@ -1,6 +1,88 @@
+import multiprocessing as mp
+import os
+from multiprocessing import Event
+from multiprocessing.managers import Namespace
+
 import cv2
+import serial
 
 from ..dataclasses import Configuration, ConfigMode
+from ..dataclasses import MJImage
+
+
+def start_processing_process(ns: Namespace, evt: Event, sh_evt: Event):
+    proc = mp.Process(target=processing_starter, args=(ns, evt, sh_evt))
+    proc.start()
+
+
+def processing_starter(ns: Namespace, evt: Event, sh_evt: Event):
+    try:
+        ser = serial.Serial(
+            port='/dev/ttyS0',
+            baudrate=9600,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            bytesize=serial.EIGHTBITS,
+            timeout=0,
+            writeTimeout=0,
+            xonxoff=False,
+            rtscts=False,
+            dsrdtr=False
+        )
+    except serial.SerialException as e:
+        print('Ignoring serial exception', e.args[0])
+        # just die, there's no good we can do here
+        ser = None
+
+    configurations = {
+        ConfigMode.GEARS: Configuration((18, 100, 100), (35, 255, 255)),
+        ConfigMode.TAPE: Configuration((60, 100, 70), (90, 255, 255))
+    }
+
+    if not evt.is_set():
+        evt.wait()
+
+    while not sh_evt.is_set():
+        # noinspection PyBroadException
+        try:
+            active_cfg = getattr(ns, 'active_config')
+            image = getattr(ns, 'image').array
+            x_center = process_image(active_cfg, configurations[active_cfg],
+                                     image)
+
+            setattr(ns, 'processed_image', MJImage(image))
+
+            if ser is not None:
+                ser.flushOutput()
+                ser.write("%+04d\n".format(int(x_center - 160)))
+        except Exception:
+            import traceback
+            traceback.print_exc()
+
+        # noinspection PyBroadException
+        try:
+            if ser is not None:
+                if ser.inWaiting() > 0:
+                    read = str(ser.read(1))
+                    ser.flushInput()
+                    if "s" in read:
+                        sh_evt.set()
+                        os.system("sudo shutdown -h now")
+                    elif "q" in read:
+                        sh_evt.set()
+                    elif "l" in read:
+                        os.system(
+                            "v4l2-ctl -d /dev/video1 -c exposure_absolute=5")
+                    elif "h" in read:
+                        os.system(
+                            "v4l2-ctl -d /dev/video1 -c exposure_absolute=156")
+                    elif "t" in read:
+                        setattr(ns, 'active_config', ConfigMode.TAPE)
+                    elif "g" in read:
+                        setattr(ns, 'active_config', ConfigMode.GEARS)
+        except Exception:
+            import traceback
+            traceback.print_exc()
 
 
 def process_image(cfg_id: ConfigMode, cfg: Configuration, image) -> int:
