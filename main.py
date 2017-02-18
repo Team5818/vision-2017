@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.4
+#!/usr/bin/env python3.6
 from multiprocessing import Manager
 
 from server import CaptureHTTPServer
