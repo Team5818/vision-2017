@@ -10,7 +10,7 @@ from ..dataclasses import Configuration, ConfigMode
 from ..dataclasses import MJImage
 
 CAM0_SET = "v4l2-ctl -d /dev/video0 -c "
-CAM1_SET = "v4l2-ctl -d /dev/video1 -c "
+CAM1_SET = "v4l2-ctl -d /dev/video2 -c "
 
 LOW_EXPOSURE = 5
 HIGH_EXPOSURE = 156
