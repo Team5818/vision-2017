@@ -15,6 +15,8 @@ CAM1_SET = "v4l2-ctl -d /dev/video2 -c "
 LOW_EXPOSURE = 5
 HIGH_EXPOSURE = 156
 
+NO_VISION = 254
+
 
 def start_processing_process(ns: Namespace, evt: Event, sh_evt: Event):
     proc = mp.Process(target=processing_starter, args=(ns, evt, sh_evt))
@@ -110,7 +112,7 @@ def process_image(cfg_id: ConfigMode, cfg: Configuration, image) -> int:
                             cv2.CHAIN_APPROX_SIMPLE)[-2]
     if cfg_id == ConfigMode.TAPE:
         if len(cnts) > 0:
-            x_center = 160
+            x_center = NO_VISION
             cnts = sorted(cnts, key=cv2.contourArea)
             (x, y, w, h) = cv2.boundingRect(cnts[-1])
             if len(cnts) < 2:
@@ -131,10 +133,10 @@ def process_image(cfg_id: ConfigMode, cfg: Configuration, image) -> int:
                 y_center = int(y + h / 2)
                 cv2.circle(image, (x_center, y_center), 3, (0, 0, 255), 2)
         else:
-            x_center = 160
+            x_center = NO_VISION
     else:
         if len(cnts) > 0:
-            x_center = 160
+            x_center = NO_VISION
             c = max(cnts, key=cv2.contourArea)
             if len(c) > 5:
                 rect = cv2.minAreaRect(c)
@@ -144,6 +146,6 @@ def process_image(cfg_id: ConfigMode, cfg: Configuration, image) -> int:
                     cv2.circle(image, (int(x), int(y)), 3, (0, 255, 0), 2)
                     x_center = x
         else:
-            x_center = 160
+            x_center = NO_VISION
 
     return x_center
