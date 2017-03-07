@@ -1,14 +1,18 @@
 import multiprocessing as mp
 import os
+from collections import deque
 from multiprocessing import Event
 from multiprocessing.managers import Namespace
-from socketserver import TCPServer
+from socket import socket
+from socketserver import TCPServer, BaseRequestHandler
+from typing import Tuple
 
 import cv2
 import serial
 
 from ..dataclasses import Configuration, ConfigMode
 from ..dataclasses import MJImage
+from ..socketutil import read_bytes, write_bytes, get_readable
 
 CAM0_SET = "v4l2-ctl -d /dev/video0 -c "
 CAM1_SET = "v4l2-ctl -d /dev/video1 -c "
@@ -18,15 +22,109 @@ HIGH_EXPOSURE = 156
 
 NO_VISION = 254
 
-class Server(TCPServer):
-    pass
+ns = None
+sh_evt = None
 
-def start_processing_process(ns: Namespace, evt: Event, sh_evt: Event, port: int):
-    proc = mp.Process(target=processing_starter, args=(ns, evt, sh_evt, port))
+
+def handle_command_global(read: str):
+    global sh_evt, ns
+
+    if "s" in read and sh_evt is not None:
+        sh_evt.set()
+        os.system("sudo shutdown -h now")
+    elif "q" in read and sh_evt is not None:
+        sh_evt.set()
+    elif "l" in read:
+        os.system(
+            f"{CAM1_SET} exposure_absolute={LOW_EXPOSURE}")
+    elif "h" in read:
+        os.system(
+            f"{CAM1_SET} exposure_absolute={HIGH_EXPOSURE}")
+    elif "t" in read:
+        setattr(ns, 'active_config', ConfigMode.TAPE)
+    elif "g" in read:
+        setattr(ns, 'active_config', ConfigMode.GEARS)
+
+
+class Comm:
+    def __init__(self, request: socket, client_addr: str):
+        self.request = request
+        self.client_addr = client_addr
+        self.comm_queue = deque()
+        self._need_frame = False
+        self._frame = None
+
+    def read_next_command(self):
+        if get_readable([self.request]):
+            # read command
+            cmd = read_bytes(self.request).decode('utf-8')
+            if cmd == 'send_frame':
+                if self._frame is not None:
+                    write_bytes(self.request, self._frame)
+                else:
+                    self._need_frame = True
+            else:
+                self.comm_queue.append(cmd)
+
+            return True
+        return False
+
+    def has_command(self):
+        return len(self.comm_queue) > 0
+
+    def next_command(self):
+        return self.comm_queue.popleft()
+
+    def set_frame(self, frame: bytes):
+        self._frame = frame
+        if self._need_frame:
+            self.request.sendall(frame)
+            self._need_frame = False
+
+
+class Server(TCPServer):
+    timeout = 0
+
+    def __init__(self, port: int):
+        super().__init__(('', port), BaseRequestHandler)
+        self.active_comm: Comm = None
+
+    def process_request(self, request, client_address):
+        self._shutdown_active_comm()
+        self.active_comm = Comm(request, client_address)
+
+    def service_actions(self):
+        if self.active_comm is None:
+            return
+
+        try:
+            while self.active_comm.read_next_command():
+                pass
+
+            while self.active_comm.has_command():
+                cmd = self.active_comm.next_command()
+                handle_command_global(cmd)
+        except EOFError:
+            self._shutdown_active_comm()
+
+    def _shutdown_active_comm(self):
+        if self.active_comm is not None:
+            self.shutdown_request(self.active_comm.request)
+            self.active_comm = None
+
+
+def start_processing_process(namespace: Namespace, evt: Event,
+                             shutdown_event: Event, port: int):
+    proc = mp.Process(target=processing_starter,
+                      args=(namespace, evt, shutdown_event, port))
     proc.start()
 
 
-def processing_starter(ns: Namespace, evt: Event, sh_evt: Event, port: int):
+def processing_starter(namespace: Namespace, evt: Event, shutdown_evt: Event,
+                       port: int):
+    global ns, sh_evt
+    ns = namespace
+    sh_evt = shutdown_evt
     try:
         ser = serial.Serial(
             port='/dev/ttyAMA0',
@@ -73,13 +171,26 @@ def processing_starter(ns: Namespace, evt: Event, sh_evt: Event, port: int):
 
             setattr(ns, 'processed_image', MJImage(image))
 
+            if x_center is not None:
+                x_center -= 160
+            else:
+                x_center = NO_VISION
+
+            x_center_bytes = f"{int(x_center):+04d}".encode('utf-8')
+
+            if server is not None:
+                ready = get_readable([server])
+                if ready:
+                    server.handle_request()
+
+                if server.active_comm is not None:
+                    server.active_comm.set_frame(x_center_bytes)
+                server.service_actions()
+
             if ser is not None:
                 ser.flushOutput()
-                if x_center is not None:
-                    x_center -= 160
-                else:
-                    x_center = NO_VISION
-                ser.write(f"{int(x_center):+04d}\n".encode('utf-8'))
+                ser.write(x_center_bytes)
+                ser.write(b'\n')
         except Exception:
             import traceback
             traceback.print_exc()
@@ -90,21 +201,7 @@ def processing_starter(ns: Namespace, evt: Event, sh_evt: Event, port: int):
                 if ser.inWaiting() > 0:
                     read = str(ser.read(1))
                     ser.flushInput()
-                    if "s" in read:
-                        sh_evt.set()
-                        os.system("sudo shutdown -h now")
-                    elif "q" in read:
-                        sh_evt.set()
-                    elif "l" in read:
-                        os.system(
-                            f"{CAM1_SET} exposure_absolute={LOW_EXPOSURE}")
-                    elif "h" in read:
-                        os.system(
-                            f"{CAM1_SET} exposure_absolute={HIGH_EXPOSURE}")
-                    elif "t" in read:
-                        setattr(ns, 'active_config', ConfigMode.TAPE)
-                    elif "g" in read:
-                        setattr(ns, 'active_config', ConfigMode.GEARS)
+                    handle_command_global(read)
         except Exception:
             import traceback
             traceback.print_exc()
