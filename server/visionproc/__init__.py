@@ -15,6 +15,8 @@ CAM1_SET = "v4l2-ctl -d /dev/video1 -c "
 LOW_EXPOSURE = 5
 HIGH_EXPOSURE = 156
 
+NO_VISION = 254
+
 
 def start_processing_process(ns: Namespace, evt: Event, sh_evt: Event):
     proc = mp.Process(target=processing_starter, args=(ns, evt, sh_evt))
@@ -42,7 +44,7 @@ def processing_starter(ns: Namespace, evt: Event, sh_evt: Event):
 
     configurations = {
         ConfigMode.GEARS: Configuration((18, 100, 100), (35, 255, 255)),
-        ConfigMode.TAPE: Configuration((60, 100, 70), (90, 255, 255))
+        ConfigMode.TAPE: Configuration((60, 50, 70), (90, 255, 255))
     }
 
     # le camera setup
@@ -66,7 +68,11 @@ def processing_starter(ns: Namespace, evt: Event, sh_evt: Event):
 
             if ser is not None:
                 ser.flushOutput()
-                ser.write(f"{int(x_center - 160):+04d}\n".encode('utf-8'))
+                if x_center is not None:
+                    x_center -= 160
+                else:
+                    x_center = NO_VISION
+                ser.write(f"{int(x_center):+04d}\n".encode('utf-8'))
         except Exception:
             import traceback
             traceback.print_exc()
@@ -110,7 +116,7 @@ def process_image(cfg_id: ConfigMode, cfg: Configuration, image) -> int:
                             cv2.CHAIN_APPROX_SIMPLE)[-2]
     if cfg_id == ConfigMode.TAPE:
         if len(cnts) > 0:
-            x_center = 160
+            x_center = None
             cnts = sorted(cnts, key=cv2.contourArea)
             (x, y, w, h) = cv2.boundingRect(cnts[-1])
             if len(cnts) < 2:
@@ -131,10 +137,10 @@ def process_image(cfg_id: ConfigMode, cfg: Configuration, image) -> int:
                 y_center = int(y + h / 2)
                 cv2.circle(image, (x_center, y_center), 3, (0, 0, 255), 2)
         else:
-            x_center = 160
+            x_center = None
     else:
         if len(cnts) > 0:
-            x_center = 160
+            x_center = None
             c = max(cnts, key=cv2.contourArea)
             if len(c) > 5:
                 rect = cv2.minAreaRect(c)
@@ -144,6 +150,6 @@ def process_image(cfg_id: ConfigMode, cfg: Configuration, image) -> int:
                     cv2.circle(image, (int(x), int(y)), 3, (0, 255, 0), 2)
                     x_center = x
         else:
-            x_center = 160
+            x_center = None
 
     return x_center
