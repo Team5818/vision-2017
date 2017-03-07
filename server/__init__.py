@@ -29,10 +29,10 @@ class CaptureHTTPServer(HTTPServer):
             handler = CaptureHTTPHandler(req, client_addr, self)
             if handler.request_type == RequestType.SIMPLE:
                 # close request here
-                print('close', handler.path)
+                print('close', getattr(handler, 'path', client_addr))
                 self.shutdown_request(req)
             else:
-                print('add', handler.path)
+                print('add', handler.path, 'from', client_addr)
                 self.conns.append(handler)
         except Exception:
             self.handle_error(req, client_addr)
@@ -71,6 +71,10 @@ class CaptureHTTPServer(HTTPServer):
                 self.handle_error(handler.request, handler.client_address)
                 self.shutdown_request(handler.request)
                 self.conns.remove(handler)
+            finally:
+                if handler.done:
+                    self.shutdown_request(handler.request)
+                    self.conns.remove(handler)
 
     def get_jpeg(self, attr_name: str):
         image = getattr(self.ns, attr_name)  # type: MJImage
@@ -84,8 +88,11 @@ class CaptureHTTPServer(HTTPServer):
 
 
 class CaptureHTTPHandler(SimpleHTTPRequestHandler):
+    timeout = 0.1
+
     def __init__(self, req, client_addr, server):
         self.request_type = RequestType.SIMPLE
+        self.done = False
         super().__init__(req, client_addr, server)
 
     def do_GET(self):
@@ -113,11 +120,14 @@ class CaptureHTTPHandler(SimpleHTTPRequestHandler):
             self.send_header('Content-length', size)
             self.end_headers()
             self.wfile.write(io)
-        except (OSError, BrokenPipeError):
-            pass
+            self.wfile.flush()
+        except (OSError, BrokenPipeError, ValueError):
+            self.request_type = None
+            self.finish()
 
     def finish(self):
-        if not self.request_type:
+        if self.request_type is None or self.request_type != RequestType.SIMPLE:
             # if serving later, don't finish now!
             return
+        self.done = True
         super().finish()
