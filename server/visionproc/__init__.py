@@ -2,6 +2,7 @@ import multiprocessing as mp
 import os
 from multiprocessing import Event
 from multiprocessing.managers import Namespace
+from socketserver import TCPServer
 
 import cv2
 import serial
@@ -17,13 +18,15 @@ HIGH_EXPOSURE = 156
 
 NO_VISION = 254
 
+class Server(TCPServer):
+    pass
 
-def start_processing_process(ns: Namespace, evt: Event, sh_evt: Event):
-    proc = mp.Process(target=processing_starter, args=(ns, evt, sh_evt))
+def start_processing_process(ns: Namespace, evt: Event, sh_evt: Event, port: int):
+    proc = mp.Process(target=processing_starter, args=(ns, evt, sh_evt, port))
     proc.start()
 
 
-def processing_starter(ns: Namespace, evt: Event, sh_evt: Event):
+def processing_starter(ns: Namespace, evt: Event, sh_evt: Event, port: int):
     try:
         ser = serial.Serial(
             port='/dev/ttyAMA0',
@@ -39,8 +42,12 @@ def processing_starter(ns: Namespace, evt: Event, sh_evt: Event):
         )
     except serial.SerialException as e:
         print('Ignoring serial exception', e.args[0])
-        # just die, there's no good we can do here
         ser = None
+    try:
+        server = Server(port)
+    except Exception as e:
+        print('Ignoring server init exception', e.args[0])
+        server = None
 
     configurations = {
         ConfigMode.GEARS: Configuration((18, 100, 100), (35, 255, 255)),
