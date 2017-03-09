@@ -40,7 +40,7 @@ class VisionMain:
 
         self.cameras = {
             ConfigMode.GEARS: new_cam(0),
-            ConfigMode.TAPE: new_cam(2)
+            ConfigMode.TAPE: new_cam(1)
         }
 
     @property

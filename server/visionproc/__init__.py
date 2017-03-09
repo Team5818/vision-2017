@@ -15,12 +15,10 @@ from ..dataclasses import MJImage
 from ..socketutil import read_bytes, write_bytes, get_readable
 
 CAM0_SET = "v4l2-ctl -d /dev/video0 -c "
-CAM1_SET = "v4l2-ctl -d /dev/video2 -c "
+CAM1_SET = "v4l2-ctl -d /dev/video1 -c "
 
 LOW_EXPOSURE = 5
-HIGH_EXPOSURE = 5 #156
-
-NO_VISION = 254
+HIGH_EXPOSURE = 156
 
 NO_VISION = 254
 
