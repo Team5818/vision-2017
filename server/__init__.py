@@ -5,7 +5,7 @@ from io import BytesIO
 from multiprocessing import Event
 from multiprocessing.managers import Namespace
 
-from .dataclasses import MJImage
+from .dataclasses import ConfigMode, MJImage
 from .socketutil import get_readable, get_writeable
 
 
@@ -97,6 +97,13 @@ class CaptureHTTPHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         if self.path not in ('/cam', '/cam-proc'):
+            if self.path == '/feed-change':
+                cm = getattr(self.server.ns, 'active_config', ConfigMode.GEARS)
+                if cm == ConfigMode.GEARS:
+                    setattr(self.server.ns, 'active_config', ConfigMode.TAPE)
+                elif cm == ConfigMode.TAPE:
+                    setattr(self.server.ns, 'active_config', ConfigMode.GEARS)
+                return
             return SimpleHTTPRequestHandler.do_GET(self)
         self.send_response(200)
         self.send_header('Content-type',

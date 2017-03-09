@@ -7,10 +7,10 @@
 </head>
 <body>
 <script>
-    function switch_feeds() {
-        var btn = document.getElementById("feed-switcher");
+    function switch_src() {
+        var btn = document.getElementById("src-switcher");
         var feed = document.getElementById("feed");
-        var txt = document.getElementById("selected");
+        var txt = document.getElementById("sel-src");
 
         var plain = btn.classList.contains("plain");
         var cls = [txt.classList, btn.classList];
@@ -32,11 +32,17 @@
             });
         }
     }
+    function switch_feeds() {
+        var oReq = new XMLHttpRequest();
+        oReq.open("GET", "/feed-change");
+        oReq.send();
+    }
 </script>
 <div>
     <img id="feed" class="center" width="625" height="500" src="/cam"/>
-    <p id="selected" class="center center-text plain">PLAIN</p>
-    <button id="feed-switcher" class="center plain" onclick="switch_feeds()">Switch Source</button>
+    <p id="sel-src" class="center center-text plain">PLAIN</p>
+    <button id="src-switcher" class="btn center plain" onclick="switch_src()">Switch Source</button>
+    <button id="feed-switcher" class="btn center plain" onclick="switch_feeds()">Switch Feed</button>
 </div>
 </body>
 </html>
