@@ -1,4 +1,5 @@
 syntax = "proto3";
+option java_package = "org.rivierarobotics.protos";
 
 /** Signal message, indicates the server should do something */
 message Signal {
