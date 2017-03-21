@@ -1,3 +1,3 @@
-from .packet_pb2 import Signal, FrameRequest, Frame, SimplePacket
+from .packet_pb2 import Signal, SetFrameType, Frame, SimplePacket
 
-__all__ = ['Frame', 'FrameRequest', 'Signal', 'SimplePacket']
+__all__ = ['Frame', 'SetFrameType', 'Signal', 'SimplePacket']

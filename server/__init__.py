@@ -12,8 +12,8 @@ from google.protobuf.message import Message
 
 from .dataclasses import ConfigMode
 from .dataclasses import MJImage
-from .protos import Signal, Frame, FrameRequest, SimplePacket
-from .socketutil import get_readable, get_writeable, read_bytes,write_bytes
+from .protos import Signal, Frame, SetFrameType, SimplePacket
+from .socketutil import get_readable, get_writeable, read_bytes, write_bytes
 
 
 class FrameType(Enum):
@@ -66,11 +66,13 @@ class CaptureServer(TCPServer):
                 finally:
                     self.handle_error(handler.request, handler.client_addr)
                     self.shutdown_request(handler.request)
-                    self.conns.remove(handler)
+                    if handler in self.conns:
+                        self.conns.remove(handler)
             finally:
                 if handler.done:
                     self.shutdown_request(handler.request)
-                    self.conns.remove(handler)
+                    if handler in self.conns:
+                        self.conns.remove(handler)
 
     def get_frame(self, ftype: FrameType) -> Frame:
         """
@@ -113,14 +115,18 @@ class CaptureHandler:
         self.request = req
         self.client_addr = client_addr
         self.server = server
+        self.frame_type = FrameType.PLAIN
         self.done = False
 
     def fileno(self):
         return self.request.fileno()
 
     def handle_message(self):
+        # always send frames!
+        self.send_frame()
         packet = SimplePacket()  # type: Message
-        packet.ParseFromString(read_bytes(self.request))
+        packet_bytes = read_bytes(self.request)
+        packet.ParseFromString(packet_bytes)
 
         any_val = getattr(packet, 'message')  # type: Any
 
@@ -137,20 +143,21 @@ class CaptureHandler:
                     setattr(self.server.ns, 'active_config', ConfigMode.GEARS)
             elif sig == Signal.DISCONNECT:
                 self.close()
-        elif any_val.Is(FrameRequest.DESCRIPTOR):
-            fr = FrameRequest()
+        elif any_val.Is(SetFrameType.DESCRIPTOR):
+            fr = SetFrameType()
             any_val.Unpack(fr)
 
-            frame_type = FrameType[FrameRequest.Type.Name(fr.type)]
-
-            frame = self.server.get_frame(frame_type)
-
-            sp = SimplePacket()
-            sp.message.Pack(frame)
-
-            write_bytes(self.request, sp.SerializeToString())
+            self.frame_type = FrameType[SetFrameType.Type.Name(fr.type)]
         else:
-            raise ValueError('Unhandled message ' + str(any_val))
+            raise ValueError('Unhandled message ' + repr(any_val))
+
+    def send_frame(self):
+        frame = self.server.get_frame(self.frame_type)
+
+        sp = SimplePacket()
+        sp.message.Pack(frame)
+
+        write_bytes(self.request, sp.SerializeToString())
 
     def close(self):
         self.done = True

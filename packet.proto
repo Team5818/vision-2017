@@ -15,7 +15,7 @@ message Signal {
         DISCONNECT = 1;
     }
 }
-message FrameRequest {
+message SetFrameType {
     Type type = 1;
     enum Type {
         PLAIN = 0;
