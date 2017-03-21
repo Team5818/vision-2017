@@ -1,6 +1,12 @@
 syntax = "proto3";
 option java_package = "org.rivierarobotics.protos";
 
+import "google/protobuf/any.proto";
+
+message SimplePacket {
+    google.protobuf.Any message = 1;
+}
+
 /** Signal message, indicates the server should do something */
 message Signal {
     Type type = 1;

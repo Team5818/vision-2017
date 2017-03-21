@@ -7,11 +7,13 @@ from socket import socket
 from socketserver import TCPServer, BaseRequestHandler
 from typing import List
 
+from google.protobuf.internal.well_known_types import Any
+from google.protobuf.message import Message
+
 from .dataclasses import ConfigMode
 from .dataclasses import MJImage
-from .packet import Packet
-from .protos import Signal, Frame, FrameRequest
-from .socketutil import get_readable, get_writeable
+from .protos import Signal, Frame, FrameRequest, SimplePacket
+from .socketutil import get_readable, get_writeable, read_bytes,write_bytes
 
 
 class FrameType(Enum):
@@ -113,16 +115,20 @@ class CaptureHandler:
         self.server = server
         self.done = False
 
-        self.rfile = req.makefile('rb')
-        self.wfile = req.makefile('wb')
-
     def fileno(self):
         return self.request.fileno()
 
     def handle_message(self):
-        packet = Packet.from_bytes(self.rfile)
-        if isinstance(packet.msg, Signal):
-            sig = packet.msg.type
+        packet = SimplePacket()  # type: Message
+        packet.ParseFromString(read_bytes(self.request))
+
+        any_val = getattr(packet, 'message')  # type: Any
+
+        if any_val.Is(Signal.DESCRIPTOR):
+            sig = Signal()
+            any_val.Unpack(sig)
+
+            sig = sig.type
             if sig == Signal.SWITCH_FEED:
                 cm = getattr(self.server.ns, 'active_config', ConfigMode.GEARS)
                 if cm == ConfigMode.GEARS:
@@ -131,17 +137,20 @@ class CaptureHandler:
                     setattr(self.server.ns, 'active_config', ConfigMode.GEARS)
             elif sig == Signal.DISCONNECT:
                 self.close()
-        elif isinstance(packet.msg, FrameRequest):
-            frame_type = FrameType[FrameRequest.Type.Name(packet.msg.type)]
+        elif any_val.Is(FrameRequest.DESCRIPTOR):
+            fr = FrameRequest()
+            any_val.Unpack(fr)
+
+            frame_type = FrameType[FrameRequest.Type.Name(fr.type)]
 
             frame = self.server.get_frame(frame_type)
-            self.wfile.write(Packet(frame).to_bytes())
+
+            sp = SimplePacket()
+            sp.message.Pack(frame)
+
+            write_bytes(self.request, sp.SerializeToString())
         else:
-            raise ValueError('Unhandled message ' + str(packet.msg))
+            raise ValueError('Unhandled message ' + str(any_val))
 
     def close(self):
         self.done = True
-        try:
-            self.rfile.close()
-        finally:
-            self.wfile.close()

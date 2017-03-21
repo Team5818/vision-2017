@@ -1,1 +1,2 @@
 *.py[co]
+/server/protos/packet_pb2.py
