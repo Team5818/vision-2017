@@ -22,6 +22,8 @@ class FrameType(Enum):
 
 
 class CaptureServer(TCPServer):
+    allow_reuse_address = True
+
     def __init__(self, addr, ns: Namespace, evt: Event, sh_evt: Event):
         super().__init__(addr, BaseRequestHandler)
         self.ns = ns
@@ -51,8 +53,7 @@ class CaptureServer(TCPServer):
         # wait for ns.image to appear
         if not self.evt.is_set():
             self.evt.wait()
-        # process any requests running using select
-        handlers = get_readable(self.conns)
+        handlers = list(self.conns)
         if not handlers:
             return
 
@@ -124,6 +125,10 @@ class CaptureHandler:
     def handle_message(self):
         # always send frames!
         self.send_frame()
+
+        if len(get_readable([self])) == 0:
+            return
+
         packet = SimplePacket()  # type: Message
         packet_bytes = read_bytes(self.request)
         packet.ParseFromString(packet_bytes)

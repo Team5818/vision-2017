@@ -14,7 +14,7 @@ def main():
     comms, evt, sh_evt = start_vision_process(manager)
     start_processing_process(comms, evt, sh_evt, COMMS_PORT)
     CaptureServer(('', PORT), comms, evt, sh_evt) \
-        .serve_forever(poll_interval=0.015)
+        .serve_forever(poll_interval=0.005)
 
 
 if __name__ == '__main__':
