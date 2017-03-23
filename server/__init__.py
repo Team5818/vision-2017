@@ -1,4 +1,3 @@
-import zlib
 from enum import Enum, auto
 from io import BytesIO
 from multiprocessing import Event
@@ -95,9 +94,8 @@ class CaptureServer(TCPServer):
 
     def _get_frame(self, name: str) -> Frame:
         l, buf = self.get_jpeg(name)
-        zcomp = zlib.compress(buf)
         frame = Frame()
-        frame.jpeg = zcomp
+        frame.jpeg = buf
         return frame
 
     def get_jpeg(self, attr_name: str):
