@@ -1,0 +1,30 @@
+syntax = "proto3";
+option java_package = "org.rivierarobotics.protos";
+
+import "google/protobuf/any.proto";
+
+message SimplePacket {
+    google.protobuf.Any message = 1;
+}
+
+/** Signal message, indicates the server should do something */
+message Signal {
+    Type type = 1;
+    enum Type {
+        SWITCH_FEED = 0;
+        DISCONNECT = 1;
+    }
+}
+message SetFrameType {
+    Type type = 1;
+    enum Type {
+        PLAIN = 0;
+        PROCESSED = 1;
+    }
+}
+/**
+ * Simple wrapper around a zlib-compressed JPEG frame.
+ */
+message Frame {
+    bytes jpeg = 1;
+}
